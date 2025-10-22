@@ -25,23 +25,27 @@ async function initCosmos() {
     return; // leave cosmosClient null so fallback to JSON is used
   }
 
-  // Defaults for the Azure Cosmos DB Emulator
-  const EMULATOR_ENDPOINT = 'https://localhost:8081/';
-  const EMULATOR_KEY =
-    'C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==';
-
-  // Use provided env vars, otherwise fall back to emulator (for local dev/demo)
-  const endpoint = process.env.COSMOS_ENDPOINT || EMULATOR_ENDPOINT;
-  const key = process.env.COSMOS_KEY || EMULATOR_KEY;
+  // Read endpoint/key from environment. Do NOT hardcode credentials in code.
+  const endpoint = process.env.COSMOS_ENDPOINT;
+  const key = process.env.COSMOS_KEY;
   const databaseId = process.env.COSMOS_DATABASE || 'vibeodedemo-db';
   const containerId = process.env.COSMOS_CONTAINER || 'products';
   const partitionKeyPath = process.env.COSMOS_PARTITION_KEY || '/category';
 
-  // For local emulator demo we disable strict TLS verification to avoid
-  // needing to import the emulator cert. This is ONLY for local development.
-  if (!process.env.COSMOS_ENDPOINT) {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  // If endpoint/key are not set, do not attempt to initialize Cosmos
+  if (!endpoint || !key) {
+    // Not configured; fall back to JSON
+    console.warn(
+      'COSMOS_ENDPOINT and/or COSMOS_KEY not set. Falling back to local JSON storage.\n' +
+        'To enable Cosmos DB (emulator or account), set COSMOS_ENDPOINT and COSMOS_KEY in your environment or .env file.'
+    );
+    return;
   }
+
+  // For local endpoints (emulator) avoid strict TLS verification in dev only
+  try {
+    if (endpoint.includes('localhost')) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  } catch (_) {}
 
 
   try {
