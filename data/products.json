@@ -1,0 +1,26 @@
+[
+  {
+    "id": "p1",
+    "title": "Acoustic Guitar",
+    "price": 95.65,
+    "category": "instruments",
+    "image": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=800&q=80",
+    "description": "A warm-sounding steel-string acoustic guitar, perfect for beginners and pros alike."
+  },
+  {
+    "id": "p2",
+    "title": "Wireless Headphones",
+    "price": 43.05,
+    "category": "audio",
+    "image": "https://picsum.photos/seed/headphones/800/600",
+    "description": "Comfortable over-ear wireless headphones with active noise cancellation."
+  },
+  {
+    "id": "p3",
+    "title": "Portable Speaker",
+    "price": 23.91,
+    "category": "audio",
+    "image": "https://picsum.photos/seed/speaker/800/600",
+    "description": "Small but powerful Bluetooth speaker with 10 hours of battery life."
+  }
+]
