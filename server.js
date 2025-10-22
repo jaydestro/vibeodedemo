@@ -8,58 +8,50 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Simple API to return products from JSON file
-app.get('/api/products', (req, res) => {
-  const dataPath = path.join(__dirname, 'data', 'products.json');
-  fs.readFile(dataPath, 'utf8', (err, raw) => {
-    if (err) {
-      console.error('Error reading products file', err);
-      return res.status(500).json({ error: 'failed to load products' });
-    }
-    try {
-      const products = JSON.parse(raw);
-      res.json(products);
-    } catch (e) {
-      console.error('Invalid JSON in products file', e);
-      res.status(500).json({ error: 'invalid products data' });
-    }
-  });
+// Use DB abstraction for products
+const db = require('./db');
+app.use(express.json());
+
+// Initialize DB (Cosmos/emulator) at startup
+db.init().then(() => {
+  if (db.isCosmosEnabled()) {
+    console.log('Using Cosmos DB at', db.getInfo().endpoint);
+  } else {
+    console.log('Cosmos not enabled — using local JSON file fallback');
+  }
+});
+
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await db.getAllProducts();
+    res.json(products);
+  } catch (e) {
+    console.error('Failed to load products', e);
+    res.status(500).json({ error: 'failed to load products' });
+  }
+});
+
+app.get('/api/db-status', (req, res) => {
+  res.json({ cosmosEnabled: db.isCosmosEnabled(), info: db.getInfo() });
 });
 
 // Bulk update endpoint: apply a discountPercent to all products
-app.use(express.json());
-app.post('/api/products/update-all', (req, res) => {
+app.post('/api/products/update-all', async (req, res) => {
   const { discountPercent } = req.body || {};
   if (typeof discountPercent !== 'number' || isNaN(discountPercent)) {
     return res.status(400).json({ error: 'discountPercent must be a number' });
   }
 
-  const dataPath = path.join(__dirname, 'data', 'products.json');
-  fs.readFile(dataPath, 'utf8', (err, raw) => {
-    if (err) {
-      console.error('Error reading products file', err);
-      return res.status(500).json({ error: 'failed to load products' });
-    }
-    let products;
-    try {
-      products = JSON.parse(raw);
-    } catch (e) {
-      console.error('Invalid JSON in products file', e);
-      return res.status(500).json({ error: 'invalid products data' });
-    }
-
-    // Apply discount
+  try {
+    const products = await db.getAllProducts();
     const factor = 1 - discountPercent / 100;
     const updated = products.map((p) => ({ ...p, price: Math.round((p.price * factor) * 100) / 100 }));
-
-    fs.writeFile(dataPath, JSON.stringify(updated, null, 2), 'utf8', (err) => {
-      if (err) {
-        console.error('Failed to write products file', err);
-        return res.status(500).json({ error: 'failed to write products' });
-      }
-      res.json({ success: true, updatedCount: updated.length });
-    });
-  });
+    await db.updateAllProducts(updated);
+    res.json({ success: true, updatedCount: updated.length });
+  } catch (e) {
+    console.error('Failed to update products', e);
+    res.status(500).json({ error: 'failed to update products' });
+  }
 });
 
 // Fallback to index.html for client-side routing
