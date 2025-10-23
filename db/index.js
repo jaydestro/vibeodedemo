@@ -25,31 +25,42 @@ async function initCosmos() {
     return; // leave cosmosClient null so fallback to JSON is used
   }
 
-  // Read endpoint/key from environment. Do NOT hardcode credentials in code.
+  // Read endpoint from environment. Do NOT hardcode credentials in code.
   const endpoint = process.env.COSMOS_ENDPOINT;
   const key = process.env.COSMOS_KEY;
   const databaseId = process.env.COSMOS_DATABASE || 'vibeodedemo-db';
   const containerId = process.env.COSMOS_CONTAINER || 'products';
   const partitionKeyPath = process.env.COSMOS_PARTITION_KEY || '/category';
 
-  // If endpoint/key are not set, do not attempt to initialize Cosmos
-  if (!endpoint || !key) {
+  // If endpoint is not set, do not attempt to initialize Cosmos
+  if (!endpoint) {
     // Not configured; fall back to JSON
     console.warn(
-      'COSMOS_ENDPOINT and/or COSMOS_KEY not set. Falling back to local JSON storage.\n' +
-        'To enable Cosmos DB (emulator or account), set COSMOS_ENDPOINT and COSMOS_KEY in your environment or .env file.'
+      'COSMOS_ENDPOINT not set. Falling back to local JSON storage.\n' +
+        'To enable Cosmos DB, set COSMOS_ENDPOINT in your environment or .env file.'
     );
     return;
   }
 
   // For local endpoints (emulator) avoid strict TLS verification in dev only
   try {
-    if (endpoint.includes('localhost')) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    if (endpoint.includes('localhost')) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      // For emulator, use key-based auth
+      if (!key) {
+        console.warn('COSMOS_KEY not set for emulator. Falling back to local JSON storage.');
+        return;
+      }
+      cosmosClient = new CosmosClient({ endpoint, key });
+    } else {
+      // For cloud Cosmos DB, use Azure CLI authentication (since portal works)
+      const { AzureCliCredential } = require('@azure/identity');
+      const credential = new AzureCliCredential();
+      cosmosClient = new CosmosClient({ endpoint, aadCredentials: credential });
+    }
   } catch (_) {}
 
-
   try {
-  cosmosClient = new CosmosClient({ endpoint, key });
 
     // Ensure database & container exist. For production you should
     // provision resources separately and not create them on the fly.

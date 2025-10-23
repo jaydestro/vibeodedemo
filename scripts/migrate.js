@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
+// Load environment variables from .env file
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 async function main() {
   const dataPath = path.join(__dirname, '..', 'data', 'products.json');
   if (!fs.existsSync(dataPath)) {
@@ -30,10 +33,17 @@ async function main() {
   const partitionKeyPath = process.env.COSMOS_PARTITION_KEY || '/category';
   const partitionKeyProp = partitionKeyPath.replace(/^\//, '');
 
-  // Allow local demo without certs
-  if (!process.env.COSMOS_ENDPOINT) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-  const client = new CosmosClient({ endpoint, key });
+  let client;
+  if (endpoint.includes('localhost')) {
+    // For emulator, use key-based auth and allow local demo without certs
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    client = new CosmosClient({ endpoint, key });
+  } else {
+    // For cloud Cosmos DB, use Azure CLI authentication (since portal works)
+    const { AzureCliCredential } = require('@azure/identity');
+    const credential = new AzureCliCredential();
+    client = new CosmosClient({ endpoint, aadCredentials: credential });
+  }
 
   try {
     console.log('Ensuring database & container exist...');

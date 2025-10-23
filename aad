@@ -1,0 +1,15 @@
+# Variables
+SUB="220fc532-6091-423c-8ba0-66c2397d591b"
+RG="jagord"
+ACCOUNT="musicapp-cosmos-4681"
+ASSIGNEE_OBJECT_ID="a1b6ca04-fa71-4eac-9099-20b7ed8a7a85"  # managed identity/app/user objectId
+
+# Get Cosmos account resource ID
+COSMOS_ID=$(az cosmosdb show -n "$ACCOUNT" -g "$RG" --query id -o tsv)
+
+# Assign data-plane role (can create DBs/containers & write items)
+az role assignment create \
+  --assignee-object-id "$ASSIGNEE_OBJECT_ID" \
+  --assignee-principal-type User \
+  --role "Cosmos DB Built-in Data Contributor" \
+  --scope "$COSMOS_ID"
